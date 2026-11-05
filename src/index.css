@@ -1,0 +1,100 @@
+@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&family=Amiri:wght@400;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: "Tajawal", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(
+    135deg,
+    #f0fdf4 0%,
+    #ecfdf5 30%,
+    #f8faf8 60%,
+    #fefce8 100%
+  );
+}
+
+.font-amiri {
+  font-family: "Amiri", serif;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-radius: 1.25rem;
+}
+
+.glass-dark {
+  background: rgba(6, 78, 59, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #d4af37, #fbbf24, #b8860b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gold-bg-gradient {
+  background: linear-gradient(135deg, #d4af37, #fbbf24, #b8860b);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #d4af37, #fbbf24);
+  color: #1a2e2a;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 16px rgba(212, 175, 55, 0.3);
+}
+
+.btn-gold:hover {
+  box-shadow: 0 6px 24px rgba(212, 175, 55, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-emerald {
+  background: linear-gradient(135deg, #065f46, #10b981);
+  color: white;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 16px rgba(6, 95, 70, 0.3);
+}
+
+.btn-emerald:hover {
+  box-shadow: 0 6px 24px rgba(6, 95, 70, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #065f46;
+  color: #065f46;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  padding: 0.6rem 1.2rem;
+  border-radius: 0.75rem;
+}
+
+.btn-outline:hover {
+  background: #065f46;
+  color: white;
+}
