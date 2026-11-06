@@ -17,10 +17,10 @@ function Dashboard({ circleId }) {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [studentsRes, sessionsRes, settingsRes] = await Promise.all([
+      // ⭐ شيلنا settings من هنا عشان نصلح التحذير
+      const [studentsRes, sessionsRes] = await Promise.all([
         axios.get(`${API_BASE}/students?circleId=${circleId}`),
         axios.get(`${API_BASE}/sessions?circleId=${circleId}`),
-        axios.get(`${API_BASE}/settings`),
       ]);
 
       const allStudents = studentsRes.data;
@@ -28,7 +28,6 @@ function Dashboard({ circleId }) {
       const pausedCount = allStudents.length - students.length;
 
       const sessions = sessionsRes.data;
-      const settings = settingsRes.data;
 
       const now = new Date();
       const sessionsThisMonth = sessions.filter((s) => {
@@ -51,13 +50,8 @@ function Dashboard({ circleId }) {
           if (!activeStudentIds.has(String(ev.studentId))) return;
 
           if (ev.attendance === "present") {
-            const memQ = parseFloat(ev.memQuality) || 0;
-            const revQ = parseFloat(ev.revQuality) || 0;
-            const taj = parseFloat(ev.tajweed) || 0;
-            const les = parseFloat(ev.lesson) || 0;
-            const beh = parseFloat(ev.behavior) || 0;
-
-            totalScores += beh + memQ + revQ + taj + les;
+            // ⭐ استخدام المجموع الجديد المحسوب من الباك اند
+            totalScores += ev.total || 0;
             totalEvals++;
           }
           // المعتذر والغائب لا يأخذون درجات
