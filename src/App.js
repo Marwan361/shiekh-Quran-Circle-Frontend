@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"; 
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
@@ -14,24 +14,35 @@ function App() {
   const [circles, setCircles] = useState([]);
   const [currentCircleId, setCurrentCircleId] = useState(null);
 
-    const fetchCircles = useCallback(async () => {
+  // ⭐ استخدمنا useCallback عشان نصلح تحذير الـ useEffect
+  const fetchCircles = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/circles`);
-      setCircles(res.data);
-      setCurrentCircleId((prev) => {
-        if (res.data.length > 0 && !prev) {
-          return res.data[0]._id;
-        }
-        return prev;
-      });
+
+      // ⭐ حماية: التأكد إن الرد مصفوفة
+      if (Array.isArray(res.data)) {
+        setCircles(res.data);
+        
+        // ⭐ استخدام Functional Update عشان نتجنب الاعتماد على currentCircleId
+        setCurrentCircleId((prevId) => {
+          if (res.data.length > 0 && !prevId) {
+            return res.data[0]._id;
+          }
+          return prevId;
+        });
+      } else {
+        console.error("⚠️ الـ API رجع رد غير متوقع:", res.data);
+        setCircles([]); // نرجع مصفوفة فاضية عشان ميحصلش كراش
+      }
     } catch (err) {
-      console.error("فشل تحميل الحلقات:", err);
+      console.error("فشل تحميل الحلقات:", err?.response?.data || err.message);
+      setCircles([]); // مهم جداً: نرجع مصفوفة فاضية حتى لو حصل خطأ
     }
   }, []);
 
   useEffect(() => {
     fetchCircles();
-  }, []);
+  }, [fetchCircles]);
 
   const navigateTo = (screen) => setCurrentScreen(screen);
   const handleCircleChange = (circleId) => setCurrentCircleId(circleId);
