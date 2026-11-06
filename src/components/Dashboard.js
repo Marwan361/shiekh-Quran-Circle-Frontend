@@ -1,16 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import html2pdf from "html2pdf.js";
-
 import { API_BASE } from "../config";
-
-// ⭐ تاريخ الفصل بين النظامين
-const CUTOFF_DATE = "2026-10-10";
-
-const isNewSystem = (dateStr) => {
-  if (!dateStr) return false;
-  return dateStr >= CUTOFF_DATE;
-};
 
 function Dashboard({ circleId }) {
   const [stats, setStats] = useState({
@@ -32,7 +23,6 @@ function Dashboard({ circleId }) {
         axios.get(`${API_BASE}/settings`),
       ]);
 
-      // ⭐ استبعاد الطلاب الموقوفين من كل الحسابات
       const allStudents = studentsRes.data;
       const students = allStudents.filter((s) => s.status !== "paused");
       const pausedCount = allStudents.length - students.length;
@@ -54,13 +44,9 @@ function Dashboard({ circleId }) {
 
       let totalScores = 0;
       let totalEvals = 0;
-
-      // ⭐ استبعاد تقييمات الطلاب الموقوفين
       const activeStudentIds = new Set(students.map((s) => String(s._id)));
 
       sessionsThisMonth.forEach((session) => {
-        const newSys = isNewSystem(session.date);
-
         session.evaluations.forEach((ev) => {
           if (!activeStudentIds.has(String(ev.studentId))) return;
 
@@ -69,23 +55,12 @@ function Dashboard({ circleId }) {
             const revQ = parseFloat(ev.revQuality) || 0;
             const taj = parseFloat(ev.tajweed) || 0;
             const les = parseFloat(ev.lesson) || 0;
+            const beh = parseFloat(ev.behavior) || 0;
 
-            if (newSys) {
-              // ⭐ النظام الجديد: السلوك بدل الحضور
-              const beh = parseFloat(ev.behavior) || 0;
-              totalScores += beh + memQ + revQ + taj + les;
-            } else {
-              // النظام القديم
-              totalScores +=
-                settings.grades.attendancePresent + memQ + revQ + taj + les;
-            }
-            totalEvals++;
-          } else if (ev.attendance === "excused" && !newSys) {
-            // المعتذر في النظام القديم يأخذ درجة الحضور فقط
-            totalScores += settings.grades.attendancePresent;
+            totalScores += beh + memQ + revQ + taj + les;
             totalEvals++;
           }
-          // في النظام الجديد: المعتذر لا يأخذ شيء (لا يزيد totalEvals)
+          // المعتذر والغائب لا يأخذون درجات
         });
       });
 
@@ -203,11 +178,6 @@ function Dashboard({ circleId }) {
                     <span className="text-sm text-gray-500">
                       {session.date}
                     </span>
-                    {isNewSystem(session.date) && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        نظام السلوك
-                      </span>
-                    )}
                   </div>
                   <span className="text-sm text-gray-400">
                     {session.evaluations.length} طالب

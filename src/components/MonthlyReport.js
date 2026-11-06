@@ -63,7 +63,6 @@ function MonthlyReport({ circleId }) {
     try {
       const [year, month] = selectedMonth.split("-");
 
-      // نجلب التقرير + قائمة الطلاب (لمعرفة من هو موقوف)
       const [reportRes, studentsRes] = await Promise.all([
         axios.get(
           `${API_BASE}/reports/monthly?circleId=${circleId}&year=${year}&month=${parseInt(month)}`,
@@ -71,13 +70,11 @@ function MonthlyReport({ circleId }) {
         axios.get(`${API_BASE}/students?circleId=${circleId}`),
       ]);
 
-      // خريطة: studentId → status
       const statusMap = {};
       studentsRes.data.forEach((s) => {
         statusMap[s._id] = s.status || "active";
       });
 
-      // فلترة الطلاب الموقوفين من التقرير
       const filteredStudents = reportRes.data.students.filter(
         (s) => statusMap[s.studentId] !== "paused",
       );
@@ -134,7 +131,6 @@ function MonthlyReport({ circleId }) {
     return `${months[parseInt(month) - 1]} ${year}`;
   };
 
-  // بيانات الرسم البياني لتوزيع النسب المئوية
   const chartData = reportData
     ? {
         labels: reportData.students.map((s) => s.studentName),
@@ -243,24 +239,35 @@ function MonthlyReport({ circleId }) {
             </div>
             <table
               className="w-full text-sm border-collapse"
-              style={{ minWidth: "800px" }}>
+              style={{ minWidth: "1300px" }}>
               <thead>
-                <tr className="border-b-2 border-emerald-200 text-emerald-800">
+                <tr className="border-b-2 border-emerald-200 text-emerald-800 text-xs md:text-sm">
                   <th className="p-2 text-right">الترتيب</th>
                   <th className="p-2 text-right">الطالب</th>
-                  <th className="p-2 text-right">النوع</th>
-                  <th className="p-2 text-right">مجموع الدرجات</th>
+                  <th className="p-2 text-right">الحضور</th>
+                  <th className="p-2 text-right">كمية النص</th>
+                  <th className="p-2 text-right">درجة النص</th>
+                  <th className="p-2 text-right">السورة من أولها</th>
+                  <th className="p-2 text-right">الدرجة</th>
+                  <th className="p-2 text-right">كمية الماضي القريب</th>
+                  <th className="p-2 text-right">الدرجة</th>
+                  <th className="p-2 text-right">كمية الماضي البعيد</th>
+                  <th className="p-2 text-right">الدرجة</th>
+                  <th className="p-2 text-right">السورة السابقة</th>
+                  <th className="p-2 text-right">التجويد</th>
+                  <th className="p-2 text-right">السلوك</th>
+                  <th className="p-2 text-right">الالتزام</th>
+                  <th className="p-2 text-right text-amber-700 font-bold">
+                    المجموع
+                  </th>
                   <th className="p-2 text-right">النسبة</th>
-                  <th className="p-2 text-right">صفحات الحفظ</th>
-                  <th className="p-2 text-right">صفحات المراجعة</th>
-                  <th className="p-2 text-right">مرات الحضور</th>
                 </tr>
               </thead>
               <tbody>
                 {reportData.students.map((student) => (
                   <tr
                     key={student.studentId}
-                    className="border-b border-gray-100 hover:bg-emerald-50/50">
+                    className="border-b border-gray-100 hover:bg-emerald-50/50 text-xs md:text-sm">
                     <td className="p-2">
                       {student.rank ? (
                         <span
@@ -280,23 +287,30 @@ function MonthlyReport({ circleId }) {
                       )}
                     </td>
                     <td className="p-2 font-semibold">{student.studentName}</td>
-                    <td className="p-2">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          student.studentType === "inperson"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}>
-                        {student.studentType === "inperson" ? "حضوري" : "أونلاين"}
-                      </span>
+                    <td className="p-2 text-emerald-600 font-bold">
+                      {student.presentCount}/{reportData.sessionCount}
                     </td>
-                    <td className="p-2 font-bold text-emerald-700">
+                    <td className="p-2">{student.totalTextQty || 0}</td>
+                    <td className="p-2">{student.totalTextGrade || 0}</td>
+                    <td className="p-2 text-gray-400 text-xs">-</td>
+                    <td className="p-2">{student.totalSurahGrade || 0}</td>
+                    <td className="p-2">{student.totalRecentPastQty || 0}</td>
+                    <td className="p-2">{student.totalRecentPastGrade || 0}</td>
+                    <td className="p-2">{student.totalDistantPastQty || 0}</td>
+                    <td className="p-2">
+                      {student.totalDistantPastGrade || 0}
+                    </td>
+                    <td className="p-2 text-gray-400 text-xs">-</td>
+                    <td className="p-2">{student.totalTajweedGrade || 0}</td>
+                    <td className="p-2">{student.totalBehaviorGrade || 0}</td>
+                    <td className="p-2">{student.totalCommitmentGrade || 0}</td>
+                    <td className="p-2 font-bold text-amber-700">
                       {student.totalScore}
                     </td>
                     <td className="p-2">
                       <div className="flex items-center gap-2">
-                        <span>{student.percentage}%</span>
-                        <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <span className="font-bold">{student.percentage}%</span>
+                        <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${
                               student.percentage >= 60
@@ -309,18 +323,12 @@ function MonthlyReport({ circleId }) {
                         </div>
                       </div>
                     </td>
-                    <td className="p-2">{student.totalMemQty}</td>
-                    <td className="p-2">{student.totalRevQty}</td>
-                    <td className="p-2">
-                      {student.presentCount}/{reportData.sessionCount}
-                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {/* الرسم البياني لتوزيع النسب */}
           {chartData && (
             <div className="glass p-6">
               <h3 className="font-bold text-lg text-emerald-800 mb-4 text-center">

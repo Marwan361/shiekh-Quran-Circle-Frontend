@@ -17,14 +17,6 @@ import {
 import { Bar } from "react-chartjs-2";
 import { API_BASE } from "../config";
 
-// ⭐ تاريخ الفصل بين النظامين
-const CUTOFF_DATE = "2026-10-10";
-
-const isNewSystem = (dateStr) => {
-  if (!dateStr) return false;
-  return dateStr >= CUTOFF_DATE;
-};
-
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -166,14 +158,7 @@ function Students({ circleId, circles, onStudentsChange }) {
         `${API_BASE}/sessions?circleId=${circleId}`,
       );
       const sessions = sessionsRes.data;
-      const settingsRes = await axios.get(`${API_BASE}/settings`);
-      const settings = settingsRes.data;
-      const maxTotal =
-        settings.grades.attendancePresent +
-        settings.grades.memQualityMax +
-        settings.grades.revQualityMax +
-        settings.grades.tajweedMax +
-        settings.grades.lessonMax;
+      const maxTotal = 70; // الحد الأقصى للنظام الجديد (7 حقول درجات * 10)
 
       const monthlyMap = new Map();
       sessions.forEach((session) => {
@@ -187,41 +172,20 @@ function Students({ circleId, circles, onStudentsChange }) {
             monthlyMap.set(key, {
               label: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
               total: 0,
-              memQty: 0,
-              revQty: 0,
-              behavior: 0,
+              textQty: 0,
+              recentPastQty: 0,
               sessions: 0,
               present: 0,
             });
           }
           const data = monthlyMap.get(key);
-          const newSys = isNewSystem(session.date);
-
           if (ev.attendance === "present") {
-            const memQ = parseFloat(ev.memQuality) || 0;
-            const revQ = parseFloat(ev.revQuality) || 0;
-            const taj = parseFloat(ev.tajweed) || 0;
-            const les = parseFloat(ev.lesson) || 0;
-
-            if (newSys) {
-              // ⭐ النظام الجديد: السلوك بدل الحضور
-              const beh = parseFloat(ev.behavior) || 0;
-              data.total += beh + memQ + revQ + taj + les;
-              data.behavior += beh;
-            } else {
-              data.total +=
-                settings.grades.attendancePresent + memQ + revQ + taj + les;
-            }
-
-            data.memQty += parseFloat(ev.memQty) || 0;
-            data.revQty += parseFloat(ev.revQty) || 0;
+            // نجمع الدرجات الجديدة
+            data.total += ev.total || 0;
+            data.textQty += parseFloat(ev.textQty) || 0;
+            data.recentPastQty += parseFloat(ev.recentPastQty) || 0;
             data.present++;
-          } else if (ev.attendance === "excused" && !newSys) {
-            // المعتذر في النظام القديم
-            data.total += settings.grades.attendancePresent;
           }
-          // في النظام الجديد: المعتذر لا يأخذ شيء
-
           data.sessions++;
         }
       });
@@ -682,15 +646,15 @@ function Students({ circleId, circles, onStudentsChange }) {
               </div>
               <div className="p-4 rounded-xl bg-amber-50 text-center">
                 <div className="text-2xl font-bold text-amber-700">
-                  {studentReport.totalMemQty}
+                  {studentReport.totalLessonQty || 0}
                 </div>
-                <div className="text-xs text-gray-500">صفحات الحفظ</div>
+                <div className="text-xs text-gray-500">كمية النص</div>
               </div>
               <div className="p-4 rounded-xl bg-emerald-50 text-center">
                 <div className="text-2xl font-bold text-emerald-800">
-                  {studentReport.totalRevQty}
+                  {studentReport.totalRecentQty || 0}
                 </div>
-                <div className="text-xs text-gray-500">صفحات المراجعة</div>
+                <div className="text-xs text-gray-500">كمية الماضي القريب</div>
               </div>
               <div className="p-4 rounded-xl bg-amber-50 text-center">
                 <div className="text-2xl font-bold text-amber-700">
@@ -714,15 +678,15 @@ function Students({ circleId, circles, onStudentsChange }) {
                       datasets: [
                         {
                           label: "النسبة المئوية %",
-                          data: studentMonthlyData.map((d) =>
-                            Math.round(d.percentage * 10) / 10,
+                          data: studentMonthlyData.map(
+                            (d) => Math.round(d.percentage * 10) / 10,
                           ),
                           backgroundColor: "rgba(6, 95, 70, 0.7)",
                           yAxisID: "y",
                         },
                         {
-                          label: "صفحات الحفظ",
-                          data: studentMonthlyData.map((d) => d.memQty),
+                          label: "كمية النص",
+                          data: studentMonthlyData.map((d) => d.textQty),
                           type: "line",
                           borderColor: "#065f46",
                           backgroundColor: "rgba(6, 95, 70, 0.1)",
@@ -733,8 +697,8 @@ function Students({ circleId, circles, onStudentsChange }) {
                           yAxisID: "y1",
                         },
                         {
-                          label: "صفحات المراجعة",
-                          data: studentMonthlyData.map((d) => d.revQty),
+                          label: "كمية الماضي القريب",
+                          data: studentMonthlyData.map((d) => d.recentPastQty),
                           type: "line",
                           borderColor: "#d4af37",
                           backgroundColor: "rgba(212, 175, 55, 0.1)",

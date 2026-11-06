@@ -17,14 +17,6 @@ import {
 import { Bar } from "react-chartjs-2";
 import { API_BASE } from "../config";
 
-// ⭐ تاريخ الفصل بين النظامين
-const CUTOFF_DATE = "2026-10-10";
-
-const isNewSystem = (dateStr) => {
-  if (!dateStr) return false;
-  return dateStr >= CUTOFF_DATE;
-};
-
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -53,67 +45,35 @@ function Gamification({ circleId }) {
         s.date?.startsWith(monthPrefix),
       );
 
-      const maxTotal =
-        settings.grades.attendancePresent +
-        settings.grades.memQualityMax +
-        settings.grades.revQualityMax +
-        settings.grades.tajweedMax +
-        settings.grades.lessonMax;
-
+      const maxTotal = Object.values(settings.grades).reduce(
+        (a, b) => a + b,
+        0,
+      );
       const sessionCount = monthSessions.length;
       const monthMaxTotal = sessionCount * maxTotal;
 
       const studentReports = students.map((student) => {
         let totalScore = 0;
-        let totalMemQty = 0;
-        let totalRevQty = 0;
+        let totalTextQty = 0;
+        let totalRecentQty = 0;
+        let totalDistantQty = 0;
         let presentCount = 0;
-        let excusedCount = 0;
         let sumBehavior = 0;
-        let sumMemQuality = 0;
-        let sumRevQuality = 0;
-        let sumTajweed = 0;
-        let sumLesson = 0;
 
         monthSessions.forEach((session) => {
           const ev = session.evaluations.find(
             (e) => String(e.studentId) === String(student._id),
           );
-          if (ev) {
-            const newSys = isNewSystem(session.date);
+          if (ev && ev.attendance === "present") {
+            // الحقول الجديدة
+            totalScore += ev.total || 0;
+            sumBehavior += parseFloat(ev.behaviorGrade) || 0;
 
-            if (ev.attendance === "present") {
-              const memQ = parseFloat(ev.memQuality) || 0;
-              const revQ = parseFloat(ev.revQuality) || 0;
-              const taj = parseFloat(ev.tajweed) || 0;
-              const les = parseFloat(ev.lesson) || 0;
+            totalTextQty += parseFloat(ev.textQty) || 0;
+            totalRecentQty += parseFloat(ev.recentPastQty) || 0;
+            totalDistantQty += parseFloat(ev.distantPastQty) || 0;
 
-              if (newSys) {
-                // ⭐ النظام الجديد: السلوك بدل الحضور
-                const beh = parseFloat(ev.behavior) || 0;
-                totalScore += beh + memQ + revQ + taj + les;
-                sumBehavior += beh;
-              } else {
-                // النظام القديم
-                totalScore +=
-                  settings.grades.attendancePresent + memQ + revQ + taj + les;
-              }
-
-              sumMemQuality += memQ;
-              sumRevQuality += revQ;
-              sumTajweed += taj;
-              sumLesson += les;
-              totalMemQty += parseFloat(ev.memQty) || 0;
-              totalRevQty += parseFloat(ev.revQty) || 0;
-              presentCount++;
-            } else if (ev.attendance === "excused" && !newSys) {
-              // المعتذر يأخذ درجة الحضور فقط في النظام القديم
-              totalScore += settings.grades.attendancePresent;
-              excusedCount++;
-            } else if (ev.attendance === "excused") {
-              // في النظام الجديد: لا درجة للمعتذر
-              excusedCount++;
-            }
+            presentCount++;
           }
         });
 
@@ -126,15 +86,11 @@ function Gamification({ circleId }) {
           studentType: student.type,
           totalScore,
           percentage: Math.round(percentage * 10) / 10,
-          totalMemQty,
-          totalRevQty,
+          totalTextQty,
+          totalRecentQty,
+          totalDistantQty,
           presentCount,
-          excusedCount,
           sumBehavior,
-          sumMemQuality,
-          sumRevQuality,
-          sumTajweed,
-          sumLesson,
           sessionCount,
           rank: null,
         };
@@ -171,12 +127,9 @@ function Gamification({ circleId }) {
 
       const labels = [];
       const behaviorArr = [];
-      const memQualityArr = [];
-      const revQualityArr = [];
-      const tajweedArr = [];
-      const lessonArr = [];
-      const memQtyArr = [];
-      const revQtyArr = [];
+      const textQtyArr = [];
+      const recentQtyArr = [];
+      const distantQtyArr = [];
 
       monthsArray.forEach((monthStr) => {
         const [year, month] = monthStr.split("-").map(Number);
@@ -202,71 +155,24 @@ function Gamification({ circleId }) {
             ? Math.round((sumField("sumBehavior") / count) * 10) / 10
             : 0,
         );
-        memQualityArr.push(
-          count > 0
-            ? Math.round((sumField("sumMemQuality") / count) * 10) / 10
-            : 0,
-        );
-        revQualityArr.push(
-          count > 0
-            ? Math.round((sumField("sumRevQuality") / count) * 10) / 10
-            : 0,
-        );
-        tajweedArr.push(
-          count > 0
-            ? Math.round((sumField("sumTajweed") / count) * 10) / 10
-            : 0,
-        );
-        lessonArr.push(
-          count > 0
-            ? Math.round((sumField("sumLesson") / count) * 10) / 10
-            : 0,
-        );
-        memQtyArr.push(sumField("totalMemQty"));
-        revQtyArr.push(sumField("totalRevQty"));
+        textQtyArr.push(sumField("totalTextQty"));
+        recentQtyArr.push(sumField("totalRecentQty"));
+        distantQtyArr.push(sumField("totalDistantQty"));
       });
 
       return {
         labels,
         datasets: [
           {
-            label: "متوسط السلوك والتعاون",
+            label: "متوسط السلوك",
             data: behaviorArr,
             backgroundColor: "rgba(4, 120, 87, 0.85)",
             type: "bar",
             yAxisID: "y",
           },
           {
-            label: "متوسط جودة الحفظ",
-            data: memQualityArr,
-            backgroundColor: "rgba(6, 95, 70, 0.75)",
-            type: "bar",
-            yAxisID: "y",
-          },
-          {
-            label: "متوسط جودة المراجعة",
-            data: revQualityArr,
-            backgroundColor: "rgba(16, 185, 129, 0.75)",
-            type: "bar",
-            yAxisID: "y",
-          },
-          {
-            label: "متوسط التجويد",
-            data: tajweedArr,
-            backgroundColor: "rgba(212, 175, 55, 0.75)",
-            type: "bar",
-            yAxisID: "y",
-          },
-          {
-            label: "متوسط الدرس",
-            data: lessonArr,
-            backgroundColor: "rgba(245, 158, 11, 0.75)",
-            type: "bar",
-            yAxisID: "y",
-          },
-          {
-            label: "إجمالي صفحات الحفظ",
-            data: memQtyArr,
+            label: "إجمالي كمية النص",
+            data: textQtyArr,
             type: "line",
             borderColor: "#065f46",
             backgroundColor: "rgba(6, 95, 70, 0.1)",
@@ -277,13 +183,25 @@ function Gamification({ circleId }) {
             yAxisID: "y1",
           },
           {
-            label: "إجمالي صفحات المراجعة",
-            data: revQtyArr,
+            label: "إجمالي الماضي القريب",
+            data: recentQtyArr,
             type: "line",
             borderColor: "#d4af37",
             backgroundColor: "rgba(212, 175, 55, 0.1)",
             borderWidth: 3,
             pointBackgroundColor: "#d4af37",
+            pointRadius: 5,
+            tension: 0.3,
+            yAxisID: "y1",
+          },
+          {
+            label: "إجمالي الماضي البعيد",
+            data: distantQtyArr,
+            type: "line",
+            borderColor: "#3b82f6",
+            backgroundColor: "rgba(59, 130, 246, 0.1)",
+            borderWidth: 3,
+            pointBackgroundColor: "#3b82f6",
             pointRadius: 5,
             tension: 0.3,
             yAxisID: "y1",
@@ -298,7 +216,6 @@ function Gamification({ circleId }) {
   const computeImprovement = useCallback(
     (allSessions, students, settings, currentMonthStr) => {
       const [cy, cm] = currentMonthStr.split("-").map(Number);
-
       let py = cy;
       let pm = cm - 1;
       if (pm < 1) {
@@ -345,7 +262,6 @@ function Gamification({ circleId }) {
         });
 
       improvements.sort((a, b) => b.diff - a.diff);
-
       return improvements;
     },
     [computeMonthReport],
@@ -361,7 +277,6 @@ function Gamification({ circleId }) {
         axios.get(`${API_BASE}/settings`),
       ]);
 
-      // ⭐ استبعاد الطلاب الموقوفين من كل الحسابات
       const students = studentsRes.data.filter((s) => s.status !== "paused");
       const sessions = sessionsRes.data;
       const settings = settingsRes.data;
@@ -512,11 +427,11 @@ function Gamification({ circleId }) {
     ? reportData.students.filter((s) => s.studentType === "inperson")
     : [];
 
-  const topMostMem = [...inpersonStudents].sort(
-    (a, b) => b.totalMemQty - a.totalMemQty,
+  const topMostText = [...inpersonStudents].sort(
+    (a, b) => b.totalTextQty - a.totalTextQty,
   )[0];
-  const topMostRev = [...inpersonStudents].sort(
-    (a, b) => b.totalRevQty - a.totalRevQty,
+  const topMostRecent = [...inpersonStudents].sort(
+    (a, b) => b.totalRecentQty - a.totalRecentQty,
   )[0];
 
   const topImproved =
@@ -525,12 +440,9 @@ function Gamification({ circleId }) {
           .filter((s) => s.diff > 0)
           .sort((a, b) => b.diff - a.diff)[0]
       : null;
-
   const topProgress = [...inpersonStudents].sort(
     (a, b) => b.percentage - a.percentage,
   )[0];
-
-  // ⭐ الأكثر سلوكًا وتعاونًا
   const topBehavior = [...inpersonStudents].sort(
     (a, b) => b.sumBehavior - a.sumBehavior,
   )[0];
@@ -543,10 +455,6 @@ function Gamification({ circleId }) {
             10,
         ) / 10
       : 0;
-
-  // هل الشهر المحدد يستخدم النظام الجديد؟
-  const monthUsesNewSystem =
-    selectedMonth && isNewSystem(selectedMonth + "-01");
 
   return (
     <div className="space-y-6">
@@ -621,18 +529,6 @@ function Gamification({ circleId }) {
             </div>
           </div>
 
-          {/* شارة النظام المطبق */}
-          <div
-            className={`p-3 rounded-xl text-xs text-center ${
-              monthUsesNewSystem
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-amber-50 text-amber-700 border border-amber-200"
-            }`}>
-            {monthUsesNewSystem
-              ? "✨ هذا الشهر يطبق النظام الجديد: «السلوك والتعاون» بدجتين، والحضور بدون درجات."
-              : "🕓 هذا الشهر يطبق النظام القديم: الحضور يمنح درجتين للحاضر والمعتذر."}
-          </div>
-
           {inpersonStudents.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               {inpersonStudents
@@ -668,18 +564,18 @@ function Gamification({ circleId }) {
                     <div className="grid grid-cols-3 gap-2 mt-4 text-xs md:text-sm">
                       <div className="bg-emerald-50 rounded-lg p-2">
                         <span className="block text-[10px] md:text-xs text-gray-500">
-                          الحفظ
+                          كمية النص
                         </span>
                         <span className="font-bold text-emerald-700">
-                          {student.totalMemQty}
+                          {student.totalTextQty}
                         </span>
                       </div>
                       <div className="bg-amber-50 rounded-lg p-2">
                         <span className="block text-[10px] md:text-xs text-gray-500">
-                          المراجعة
+                          ماضي قريب
                         </span>
                         <span className="font-bold text-amber-700">
-                          {student.totalRevQty}
+                          {student.totalRecentQty}
                         </span>
                       </div>
                       <div className="bg-emerald-50 rounded-lg p-2">
@@ -700,41 +596,37 @@ function Gamification({ circleId }) {
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
               <span className="text-3xl md:text-4xl block mb-2">📖</span>
               <div className="font-bold text-emerald-800 text-sm md:text-base">
-                الأكثر حفظاً
+                الأكثر نصاً
               </div>
               <div className="text-sm md:text-lg font-semibold text-amber-700 mt-1 truncate">
-                {topMostMem?.studentName || "-"}
+                {topMostText?.studentName || "-"}
               </div>
               <div className="text-xs md:text-sm text-gray-500">
-                {topMostMem?.totalMemQty || 0} صفحة
+                {topMostText?.totalTextQty || 0} كمية
               </div>
             </div>
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
               <span className="text-3xl md:text-4xl block mb-2">🔄</span>
               <div className="font-bold text-emerald-800 text-sm md:text-base">
-                الأكثر مراجعة
+                الأكثر ماضي قريب
               </div>
               <div className="text-sm md:text-lg font-semibold text-amber-700 mt-1 truncate">
-                {topMostRev?.studentName || "-"}
+                {topMostRecent?.studentName || "-"}
               </div>
               <div className="text-xs md:text-sm text-gray-500">
-                {topMostRev?.totalRevQty || 0} صفحة
+                {topMostRecent?.totalRecentQty || 0} كمية
               </div>
             </div>
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
               <span className="text-3xl md:text-4xl block mb-2">🌟</span>
               <div className="font-bold text-emerald-800 text-sm md:text-base">
-                {monthUsesNewSystem ? "الأكثر سلوكاً" : "الأكثر التزاماً"}
+                الأكثر سلوكاً
               </div>
               <div className="text-sm md:text-lg font-semibold text-amber-700 mt-1 truncate">
-                {monthUsesNewSystem
-                  ? topBehavior?.studentName || "-"
-                  : topProgress?.studentName || "-"}
+                {topBehavior?.studentName || "-"}
               </div>
               <div className="text-xs md:text-sm text-gray-500">
-                {monthUsesNewSystem
-                  ? `${topBehavior?.sumBehavior || 0} درجة سلوك`
-                  : `${topProgress?.presentCount || 0} حضور`}
+                {topBehavior?.sumBehavior || 0} درجة
               </div>
             </div>
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
@@ -793,15 +685,15 @@ function Gamification({ circleId }) {
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="bg-emerald-50 rounded p-1.5 text-center">
-                        <div className="text-gray-500">حفظ</div>
+                        <div className="text-gray-500">النص</div>
                         <div className="font-bold text-emerald-700">
-                          {student.totalMemQty}
+                          {student.totalTextQty}
                         </div>
                       </div>
                       <div className="bg-amber-50 rounded p-1.5 text-center">
-                        <div className="text-gray-500">مراجعة</div>
+                        <div className="text-gray-500">قريب</div>
                         <div className="font-bold text-amber-700">
-                          {student.totalRevQty}
+                          {student.totalRecentQty}
                         </div>
                       </div>
                       <div className="bg-emerald-50 rounded p-1.5 text-center">
@@ -830,8 +722,8 @@ function Gamification({ circleId }) {
                   <th className="p-3 text-right">الطالب</th>
                   <th className="p-3 text-right">مجموع الدرجات</th>
                   <th className="p-3 text-right">النسبة المئوية</th>
-                  <th className="p-3 text-right">صفحات الحفظ</th>
-                  <th className="p-3 text-right">صفحات المراجعة</th>
+                  <th className="p-3 text-right">كمية النص</th>
+                  <th className="p-3 text-right">الماضي القريب</th>
                   <th className="p-3 text-right">مرات الحضور</th>
                 </tr>
               </thead>
@@ -868,19 +760,15 @@ function Gamification({ circleId }) {
                           <span>{student.percentage}%</span>
                           <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${
-                                student.percentage >= 60
-                                  ? "bg-emerald-500"
-                                  : "bg-red-400"
-                              }`}
+                              className={`h-full rounded-full ${student.percentage >= 60 ? "bg-emerald-500" : "bg-red-400"}`}
                               style={{
                                 width: `${Math.min(student.percentage, 100)}%`,
                               }}></div>
                           </div>
                         </div>
                       </td>
-                      <td className="p-3">{student.totalMemQty}</td>
-                      <td className="p-3">{student.totalRevQty}</td>
+                      <td className="p-3">{student.totalTextQty}</td>
+                      <td className="p-3">{student.totalRecentQty}</td>
                       <td className="p-3">
                         {student.presentCount}/{student.sessionCount}
                       </td>

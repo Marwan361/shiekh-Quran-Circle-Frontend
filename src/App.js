@@ -17,12 +17,20 @@ function App() {
   const fetchCircles = async () => {
     try {
       const res = await axios.get(`${API_BASE}/circles`);
-      setCircles(res.data);
-      if (res.data.length > 0 && !currentCircleId) {
-        setCurrentCircleId(res.data[0]._id);
+
+      // ⭐ حماية: التأكد إن الرد مصفوفة
+      if (Array.isArray(res.data)) {
+        setCircles(res.data);
+        if (res.data.length > 0 && !currentCircleId) {
+          setCurrentCircleId(res.data[0]._id);
+        }
+      } else {
+        console.error("⚠️ الـ API رجع رد غير متوقع:", res.data);
+        setCircles([]); // نرجع مصفوفة فاضية عشان ميحصلش كراش
       }
     } catch (err) {
-      console.error("فشل تحميل الحلقات:", err);
+      console.error("فشل تحميل الحلقات:", err?.response?.data || err.message);
+      setCircles([]); // مهم جداً: نرجع مصفوفة فاضية حتى لو حصل خطأ
     }
   };
 

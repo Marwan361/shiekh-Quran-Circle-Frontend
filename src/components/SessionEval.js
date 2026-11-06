@@ -3,19 +3,9 @@ import axios from "axios";
 import html2pdf from "html2pdf.js";
 import { API_BASE } from "../config";
 
-// ⭐ تاريخ الفصل بين النظامين
-// قبل هذا التاريخ: الحضور يمنح درجتين، ولا يوجد سلوك
-// من هذا التاريخ: خانة "السلوك والتعاون" بدجتين، والحضور بدون درجات
-const CUTOFF_DATE = "2026-10-10";
-
-const isNewSystem = (dateStr) => {
-  if (!dateStr) return false;
-  return dateStr >= CUTOFF_DATE;
-};
-
 function SessionEval({ circleId }) {
-  const [students, setStudents] = useState([]); // الطلاب النشطون فقط (للتقييم)
-  const [allStudents, setAllStudents] = useState([]); // كل الطلاب (للعرض)
+  const [students, setStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [settings, setSettings] = useState(null);
   const [sessionDate, setSessionDate] = useState(
@@ -26,18 +16,23 @@ function SessionEval({ circleId }) {
   const [showSessionDetails, setShowSessionDetails] = useState(null);
   const [editingSessionId, setEditingSessionId] = useState(null);
 
+  // ⭐ الحقول الجديدة المطابقة للإكسل بالظبط
   const emptyEval = () => ({
     attendance: "",
-    behavior: "",
-    memQty: "",
-    memQuality: "",
-    revQty: "",
-    revQuality: "",
-    tajweed: "",
-    lesson: "",
+    textQty: "",
+    textGrade: "",
+    surahFromStart: "",
+    surahFromStartGrade: "",
+    recentPastQty: "",
+    recentPastGrade: "",
+    distantPastQty: "",
+    distantPastGrade: "",
+    previousSurah: "",
+    tajweedGrade: "",
+    behaviorGrade: "",
+    commitmentGrade: "",
   });
 
-  // اسم اليوم من التاريخ
   const getDayName = (dateStr) => {
     if (!dateStr) return "";
     const days = [
@@ -101,7 +96,9 @@ function SessionEval({ circleId }) {
       [studentId]: {
         ...prev[studentId],
         [field]:
-          field === "attendance"
+          field === "attendance" ||
+          field === "surahFromStart" ||
+          field === "previousSurah"
             ? value
             : value === ""
               ? ""
@@ -110,49 +107,22 @@ function SessionEval({ circleId }) {
     }));
   };
 
-  // ⭐ حساب المجموع بناءً على تاريخ الحصة
-  const calculateTotal = (evaluation, dateStr) => {
-    if (!settings) return 0;
-    const att = evaluation.attendance;
-    const newSystem = isNewSystem(dateStr);
-
-    if (newSystem) {
-      // نظام جديد: السلوك بدل الحضور
-      if (att === "present") {
-        return (
-          (evaluation.behavior || 0) +
-          (evaluation.memQuality || 0) +
-          (evaluation.revQuality || 0) +
-          (evaluation.tajweed || 0) +
-          (evaluation.lesson || 0)
-        );
-      }
-      return 0;
-    } else {
-      // نظام قديم
-      if (att === "present") {
-        return (
-          settings.grades.attendancePresent +
-          (evaluation.memQuality || 0) +
-          (evaluation.revQuality || 0) +
-          (evaluation.tajweed || 0) +
-          (evaluation.lesson || 0)
-        );
-      } else if (att === "excused") {
-        return settings.grades.attendancePresent;
-      }
-      return 0;
-    }
+  // ⭐ حساب المجموع بناءً على الدرجات الجديدة (بدون الكميات لأنها أوزان وليست درجات)
+  const calculateTotal = (evaluation) => {
+    if (evaluation.attendance !== "present") return 0;
+    return (
+      (evaluation.textGrade || 0) +
+      (evaluation.surahFromStartGrade || 0) +
+      (evaluation.recentPastGrade || 0) +
+      (evaluation.distantPastGrade || 0) +
+      (evaluation.tajweedGrade || 0) +
+      (evaluation.behaviorGrade || 0) +
+      (evaluation.commitmentGrade || 0)
+    );
   };
 
   const getRatingText = (total) => {
-    if (!settings) return "";
-    const maxTotal =
-      settings.grades.attendancePresent +
-      settings.grades.memQualityMax +
-      settings.grades.revQualityMax +
-      settings.grades.tajweedMax +
-      settings.grades.lessonMax;
+    const maxTotal = 70; // 7 حقول درجات * 10 (أو حسب إعداداتك)
     const pct = (total / maxTotal) * 100;
     if (pct >= 87) return "ممتاز";
     if (pct >= 60) return "جيد";
@@ -160,13 +130,7 @@ function SessionEval({ circleId }) {
   };
 
   const getRatingColor = (total) => {
-    if (!settings) return "#e5e7eb";
-    const maxTotal =
-      settings.grades.attendancePresent +
-      settings.grades.memQualityMax +
-      settings.grades.revQualityMax +
-      settings.grades.tajweedMax +
-      settings.grades.lessonMax;
+    const maxTotal = 70;
     const pct = (total / maxTotal) * 100;
     if (pct >= 87) return "#10b981";
     if (pct >= 60) return "#f59e0b";
@@ -185,33 +149,54 @@ function SessionEval({ circleId }) {
       evals[student._id] = existing
         ? {
             attendance: existing.attendance || "",
-            behavior:
-              existing.behavior !== undefined && existing.behavior !== 0
-                ? existing.behavior
+            textQty:
+              existing.textQty !== undefined && existing.textQty !== 0
+                ? existing.textQty
                 : "",
-            memQty:
-              existing.memQty !== undefined && existing.memQty !== 0
-                ? existing.memQty
+            textGrade:
+              existing.textGrade !== undefined && existing.textGrade !== 0
+                ? existing.textGrade
                 : "",
-            memQuality:
-              existing.memQuality !== undefined && existing.memQuality !== 0
-                ? existing.memQuality
+            surahFromStart: existing.surahFromStart || "",
+            surahFromStartGrade:
+              existing.surahFromStartGrade !== undefined &&
+              existing.surahFromStartGrade !== 0
+                ? existing.surahFromStartGrade
                 : "",
-            revQty:
-              existing.revQty !== undefined && existing.revQty !== 0
-                ? existing.revQty
+            recentPastQty:
+              existing.recentPastQty !== undefined &&
+              existing.recentPastQty !== 0
+                ? existing.recentPastQty
                 : "",
-            revQuality:
-              existing.revQuality !== undefined && existing.revQuality !== 0
-                ? existing.revQuality
+            recentPastGrade:
+              existing.recentPastGrade !== undefined &&
+              existing.recentPastGrade !== 0
+                ? existing.recentPastGrade
                 : "",
-            tajweed:
-              existing.tajweed !== undefined && existing.tajweed !== 0
-                ? existing.tajweed
+            distantPastQty:
+              existing.distantPastQty !== undefined &&
+              existing.distantPastQty !== 0
+                ? existing.distantPastQty
                 : "",
-            lesson:
-              existing.lesson !== undefined && existing.lesson !== 0
-                ? existing.lesson
+            distantPastGrade:
+              existing.distantPastGrade !== undefined &&
+              existing.distantPastGrade !== 0
+                ? existing.distantPastGrade
+                : "",
+            previousSurah: existing.previousSurah || "",
+            tajweedGrade:
+              existing.tajweedGrade !== undefined && existing.tajweedGrade !== 0
+                ? existing.tajweedGrade
+                : "",
+            behaviorGrade:
+              existing.behaviorGrade !== undefined &&
+              existing.behaviorGrade !== 0
+                ? existing.behaviorGrade
+                : "",
+            commitmentGrade:
+              existing.commitmentGrade !== undefined &&
+              existing.commitmentGrade !== 0
+                ? existing.commitmentGrade
                 : "",
           }
         : emptyEval();
@@ -228,8 +213,6 @@ function SessionEval({ circleId }) {
       return;
     }
 
-    const newSystem = isNewSystem(sessionDate);
-
     const missingAttendance = students.filter(
       (s) => !evaluations[s._id]?.attendance,
     );
@@ -244,38 +227,45 @@ function SessionEval({ circleId }) {
       const evalData = { ...evaluations[student._id] };
       if (!evalData.attendance) evalData.attendance = "absent";
 
-      // تحويل القيم الفارغة إلى 0
+      // تحويل القيم الفارغة إلى 0 للحقول الرقمية
       [
-        "behavior",
-        "memQty",
-        "memQuality",
-        "revQty",
-        "revQuality",
-        "tajweed",
-        "lesson",
+        "textQty",
+        "textGrade",
+        "surahFromStartGrade",
+        "recentPastQty",
+        "recentPastGrade",
+        "distantPastQty",
+        "distantPastGrade",
+        "tajweedGrade",
+        "behaviorGrade",
+        "commitmentGrade",
       ].forEach((field) => {
         if (evalData[field] === "") evalData[field] = 0;
       });
 
-      // إذا كان النظام القديم، لا نرسل سلوك
-      if (!newSystem) {
-        evalData.behavior = 0;
-      }
-
-      // تصفير الدرجات للغائب
-      if (evalData.attendance === "excused" || evalData.attendance === "absent") {
-        evalData.behavior = 0;
-        evalData.memQty = 0;
-        evalData.memQuality = 0;
-        evalData.revQty = 0;
-        evalData.revQuality = 0;
-        evalData.tajweed = 0;
-        evalData.lesson = 0;
+      // تصفير الدرجات للغائب أو المعتذر
+      if (
+        evalData.attendance === "excused" ||
+        evalData.attendance === "absent"
+      ) {
+        evalData.textQty = 0;
+        evalData.textGrade = 0;
+        evalData.surahFromStart = "";
+        evalData.surahFromStartGrade = 0;
+        evalData.recentPastQty = 0;
+        evalData.recentPastGrade = 0;
+        evalData.distantPastQty = 0;
+        evalData.distantPastGrade = 0;
+        evalData.previousSurah = "";
+        evalData.tajweedGrade = 0;
+        evalData.behaviorGrade = 0;
+        evalData.commitmentGrade = 0;
       }
 
       return {
         studentId: student._id,
         ...evalData,
+        total: calculateTotal(evalData),
       };
     });
 
@@ -347,9 +337,6 @@ function SessionEval({ circleId }) {
     return "bg-gray-400";
   };
 
-  // ⭐ هل النظام الجديد مطبق على تاريخ الحصة الحالي؟
-  const formUsesNewSystem = isNewSystem(sessionDate);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -383,11 +370,6 @@ function SessionEval({ circleId }) {
                   <span className="text-sm text-gray-400">
                     {session.date} - {getDayName(session.date)}
                   </span>
-                  {isNewSystem(session.date) && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                      نظام السلوك
-                    </span>
-                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -457,18 +439,6 @@ function SessionEval({ circleId }) {
           </div>
         </div>
 
-        {/* تنبيه بنظام التقييم المطبق */}
-        <div
-          className={`mb-4 p-3 rounded-xl text-xs ${
-            formUsesNewSystem
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : "bg-amber-50 text-amber-700 border border-amber-200"
-          }`}>
-          {formUsesNewSystem
-            ? "✨ نظام جديد (من 10 أكتوبر 2026): الحضور بدون درجات، ويُضاف حقل «السلوك والتعاون» بدرجتين."
-            : "🕓 نظام قديم (قبل 10 أكتوبر 2026): الحضور يمنح درجتين تلقائيًا للحاضر والمعتذر."}
-        </div>
-
         {students.length === 0 ? (
           <p className="text-gray-400 text-center py-8">
             لا يوجد طلاب نشطون. أضف طلاباً أولاً من شاشة الطلاب.
@@ -478,9 +448,7 @@ function SessionEval({ circleId }) {
             {students.map((student) => {
               const evalData = evaluations[student._id] || emptyEval();
               const hasAttendance = !!evalData.attendance;
-              const total = hasAttendance
-                ? calculateTotal(evalData, sessionDate)
-                : 0;
+              const total = hasAttendance ? calculateTotal(evalData) : 0;
               const rating = hasAttendance ? getRatingText(total) : "";
               const ratingColor = getRatingColor(total);
 
@@ -494,11 +462,7 @@ function SessionEval({ circleId }) {
                         {student.name}
                       </span>
                       <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          student.type === "inperson"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}>
+                        className={`text-xs px-2 py-0.5 rounded-full ${student.type === "inperson" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                         {student.type === "inperson" ? "حضوري" : "أونلاين"}
                       </span>
                     </div>
@@ -515,10 +479,9 @@ function SessionEval({ circleId }) {
                       )}
                     </div>
                   </div>
-                  <div
-                    className={`grid grid-cols-2 md:grid-cols-4 ${
-                      formUsesNewSystem ? "lg:grid-cols-8" : "lg:grid-cols-7"
-                    } gap-2 text-sm`}>
+
+                  {/* ⭐ الحقول المطابقة للإكسل */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-sm">
                     <div>
                       <label className="text-xs text-gray-500">الحضور</label>
                       <select
@@ -537,147 +500,242 @@ function SessionEval({ circleId }) {
                         <option value="absent">غائب</option>
                       </select>
                     </div>
-                    {formUsesNewSystem && (
-                      <div>
-                        <label className="text-xs text-gray-500">
-                          السلوك والتعاون
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max={settings?.grades.attendancePresent || 2}
-                          step="0.5"
-                          disabled={evalData.attendance !== "present"}
-                          value={evalData.behavior || ""}
-                          onChange={(e) =>
-                            handleEvaluationChange(
-                              student._id,
-                              "behavior",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-2 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50/50 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        />
-                      </div>
-                    )}
+
+                    <div>
+                      <label className="text-xs text-gray-500">كمية النص</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.textQty || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "textQty",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500">درجة النص</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.textGrade || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "textGrade",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-xs text-gray-500">
-                        كمية الحفظ
+                        السورة من أولها
+                      </label>
+                      <input
+                        type="text"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.surahFromStart || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "surahFromStart",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500">الدرجة</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.surahFromStartGrade || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "surahFromStartGrade",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500">
+                        كمية الماضي القريب
                       </label>
                       <input
                         type="number"
                         min="0"
                         step="0.5"
                         disabled={evalData.attendance !== "present"}
-                        value={evalData.memQty || ""}
+                        value={evalData.recentPastQty || ""}
                         onChange={(e) =>
                           handleEvaluationChange(
                             student._id,
-                            "memQty",
+                            "recentPastQty",
                             e.target.value,
                           )
                         }
-                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500">الدرجة</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.recentPastGrade || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "recentPastGrade",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-xs text-gray-500">
-                        جودة الحفظ
+                        كمية الماضي البعيد
                       </label>
                       <input
                         type="number"
                         min="0"
-                        max={settings?.grades.memQualityMax || 3}
                         step="0.5"
                         disabled={evalData.attendance !== "present"}
-                        value={evalData.memQuality || ""}
+                        value={evalData.distantPastQty || ""}
                         onChange={(e) =>
                           handleEvaluationChange(
                             student._id,
-                            "memQuality",
+                            "distantPastQty",
                             e.target.value,
                           )
                         }
-                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500">الدرجة</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.distantPastGrade || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "distantPastGrade",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-xs text-gray-500">
-                        كمية المراجعة
+                        السورة السابقة
+                      </label>
+                      <input
+                        type="text"
+                        disabled={evalData.attendance !== "present"}
+                        value={evalData.previousSurah || ""}
+                        onChange={(e) =>
+                          handleEvaluationChange(
+                            student._id,
+                            "previousSurah",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500">
+                        درجة التجويد
                       </label>
                       <input
                         type="number"
                         min="0"
                         step="0.5"
                         disabled={evalData.attendance !== "present"}
-                        value={evalData.revQty || ""}
+                        value={evalData.tajweedGrade || ""}
                         onChange={(e) =>
                           handleEvaluationChange(
                             student._id,
-                            "revQty",
+                            "tajweedGrade",
                             e.target.value,
                           )
                         }
-                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
+
                     <div>
                       <label className="text-xs text-gray-500">
-                        جودة المراجعة
+                        درجة السلوك
                       </label>
                       <input
                         type="number"
                         min="0"
-                        max={settings?.grades.revQualityMax || 6}
                         step="0.5"
                         disabled={evalData.attendance !== "present"}
-                        value={evalData.revQuality || ""}
+                        value={evalData.behaviorGrade || ""}
                         onChange={(e) =>
                           handleEvaluationChange(
                             student._id,
-                            "revQuality",
+                            "behaviorGrade",
                             e.target.value,
                           )
                         }
-                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
+
                     <div>
-                      <label className="text-xs text-gray-500">التجويد</label>
+                      <label className="text-xs text-gray-500">
+                        درجة الالتزام
+                      </label>
                       <input
                         type="number"
                         min="0"
-                        max={settings?.grades.tajweedMax || 2}
                         step="0.5"
                         disabled={evalData.attendance !== "present"}
-                        value={evalData.tajweed || ""}
+                        value={evalData.commitmentGrade || ""}
                         onChange={(e) =>
                           handleEvaluationChange(
                             student._id,
-                            "tajweed",
+                            "commitmentGrade",
                             e.target.value,
                           )
                         }
-                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500">الدرس</label>
-                      <input
-                        type="number"
-                        min="0"
-                        max={settings?.grades.lessonMax || 2}
-                        step="0.5"
-                        disabled={evalData.attendance !== "present"}
-                        value={evalData.lesson || ""}
-                        onChange={(e) =>
-                          handleEvaluationChange(
-                            student._id,
-                            "lesson",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -717,7 +775,7 @@ function SessionEval({ circleId }) {
             e.target === e.currentTarget && setShowSessionDetails(null)
           }>
           <div
-            className="glass p-4 md:p-6 w-full max-w-3xl max-h-[95vh] overflow-y-auto"
+            className="glass p-4 md:p-6 w-full max-w-5xl max-h-[95vh] overflow-y-auto"
             id="session-details-pdf">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
@@ -765,8 +823,7 @@ function SessionEval({ circleId }) {
                 );
                 if (!student) return null;
                 const isPaused = student.status === "paused";
-                const sessionIsNew = isNewSystem(showSessionDetails.date);
-                const total = calculateTotal(evaluation, showSessionDetails.date);
+                const total = calculateTotal(evaluation);
                 const rating = getRatingText(total);
                 const ratingColor = getRatingColor(total);
                 const att = evaluation.attendance;
@@ -774,20 +831,14 @@ function SessionEval({ circleId }) {
                 return (
                   <div
                     key={evaluation.studentId}
-                    className={`p-3 md:p-4 rounded-xl border ${getCardStyle(att)} ${
-                      isPaused ? "opacity-70" : ""
-                    }`}>
+                    className={`p-3 md:p-4 rounded-xl border ${getCardStyle(att)} ${isPaused ? "opacity-70" : ""}`}>
                     <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-emerald-800">
                           {student.name}
                         </span>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            student.type === "inperson"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}>
+                          className={`text-xs px-2 py-0.5 rounded-full ${student.type === "inperson" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                           {student.type === "inperson" ? "حضوري" : "أونلاين"}
                         </span>
                         {isPaused && (
@@ -813,82 +864,91 @@ function SessionEval({ circleId }) {
                     </div>
 
                     {att === "present" ? (
-                      <div
-                        className={`grid grid-cols-3 ${
-                          sessionIsNew ? "md:grid-cols-7" : "md:grid-cols-6"
-                        } gap-2 text-xs`}>
-                        {sessionIsNew && (
-                          <div className="bg-emerald-50 rounded-lg p-2 text-center border border-emerald-200">
-                            <div className="text-emerald-700 mb-1 font-semibold">
-                              السلوك والتعاون
-                            </div>
-                            <div className="font-bold text-emerald-800">
-                              {evaluation.behavior || 0} /{" "}
-                              {settings?.grades.attendancePresent || 2}
-                            </div>
-                          </div>
-                        )}
+                      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-7 gap-2 text-xs">
                         <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
-                          <div className="text-gray-500 mb-1">
-                            كمية الحفظ
-                          </div>
+                          <div className="text-gray-500 mb-1">كمية النص</div>
                           <div className="font-bold text-emerald-700">
-                            {evaluation.memQty || 0} ص
+                            {evaluation.textQty || 0}
+                          </div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
+                          <div className="text-gray-500 mb-1">درجة النص</div>
+                          <div className="font-bold text-emerald-700">
+                            {evaluation.textGrade || 0}
                           </div>
                         </div>
                         <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
                           <div className="text-gray-500 mb-1">
-                            جودة الحفظ
+                            السورة من أولها
                           </div>
                           <div className="font-bold text-emerald-700">
-                            {evaluation.memQuality || 0} /{" "}
-                            {settings?.grades.memQualityMax || 3}
+                            {evaluation.surahFromStart || "-"}
+                          </div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
+                          <div className="text-gray-500 mb-1">الدرجة</div>
+                          <div className="font-bold text-emerald-700">
+                            {evaluation.surahFromStartGrade || 0}
                           </div>
                         </div>
                         <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
                           <div className="text-gray-500 mb-1">
-                            كمية المراجعة
+                            كمية الماضي القريب
                           </div>
                           <div className="font-bold text-emerald-700">
-                            {evaluation.revQty || 0} ص
+                            {evaluation.recentPastQty || 0}
+                          </div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
+                          <div className="text-gray-500 mb-1">الدرجة</div>
+                          <div className="font-bold text-emerald-700">
+                            {evaluation.recentPastGrade || 0}
                           </div>
                         </div>
                         <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
                           <div className="text-gray-500 mb-1">
-                            جودة المراجعة
+                            كمية الماضي البعيد
                           </div>
                           <div className="font-bold text-emerald-700">
-                            {evaluation.revQuality || 0} /{" "}
-                            {settings?.grades.revQualityMax || 6}
+                            {evaluation.distantPastQty || 0}
+                          </div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
+                          <div className="text-gray-500 mb-1">الدرجة</div>
+                          <div className="font-bold text-emerald-700">
+                            {evaluation.distantPastGrade || 0}
+                          </div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
+                          <div className="text-gray-500 mb-1">
+                            السورة السابقة
+                          </div>
+                          <div className="font-bold text-emerald-700">
+                            {evaluation.previousSurah || "-"}
                           </div>
                         </div>
                         <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
                           <div className="text-gray-500 mb-1">التجويد</div>
                           <div className="font-bold text-emerald-700">
-                            {evaluation.tajweed || 0} /{" "}
-                            {settings?.grades.tajweedMax || 2}
+                            {evaluation.tajweedGrade || 0}
                           </div>
                         </div>
                         <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
-                          <div className="text-gray-500 mb-1">الدرس</div>
+                          <div className="text-gray-500 mb-1">السلوك</div>
                           <div className="font-bold text-emerald-700">
-                            {evaluation.lesson || 0} /{" "}
-                            {settings?.grades.lessonMax || 2}
+                            {evaluation.behaviorGrade || 0}
+                          </div>
+                        </div>
+                        <div className="bg-white/70 rounded-lg p-2 text-center border border-gray-100">
+                          <div className="text-gray-500 mb-1">الالتزام</div>
+                          <div className="font-bold text-emerald-700">
+                            {evaluation.commitmentGrade || 0}
                           </div>
                         </div>
                       </div>
                     ) : att === "excused" ? (
-                      <div
-                        className={`text-xs rounded-lg p-2 text-center ${
-                          sessionIsNew
-                            ? "text-gray-600 bg-white/60"
-                            : "text-amber-700 bg-white/60"
-                        }`}>
-                        {sessionIsNew
-                          ? "معتذر — لا يوجد درجات"
-                          : `معتذر — يحصل على درجة الحضور فقط (${
-                              settings?.grades.attendancePresent || 2
-                            } درجات)`}
+                      <div className="text-xs rounded-lg p-2 text-center text-gray-600 bg-white/60">
+                        معتذر — لا يوجد درجات
                       </div>
                     ) : (
                       <div className="text-xs text-red-700 bg-white/60 rounded-lg p-2 text-center">
