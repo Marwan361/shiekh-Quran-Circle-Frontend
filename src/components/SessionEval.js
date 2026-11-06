@@ -7,7 +7,6 @@ function SessionEval({ circleId }) {
   const [students, setStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [settings, setSettings] = useState(null);
   const [sessionDate, setSessionDate] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -73,22 +72,12 @@ function SessionEval({ circleId }) {
     }
   }, [circleId]);
 
-  const fetchSettings = useCallback(async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/settings`);
-      setSettings(res.data);
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-    }
-  }, []);
-
   useEffect(() => {
     if (circleId) {
       fetchStudents();
       fetchSessions();
-      fetchSettings();
     }
-  }, [circleId, fetchStudents, fetchSessions, fetchSettings]);
+  }, [circleId, fetchStudents, fetchSessions]);
 
   const handleEvaluationChange = (studentId, field, value) => {
     setEvaluations((prev) => ({
