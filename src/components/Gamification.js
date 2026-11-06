@@ -440,9 +440,7 @@ function Gamification({ circleId }) {
           .filter((s) => s.diff > 0)
           .sort((a, b) => b.diff - a.diff)[0]
       : null;
-  const topProgress = [...inpersonStudents].sort(
-    (a, b) => b.percentage - a.percentage,
-  )[0];
+
   const topBehavior = [...inpersonStudents].sort(
     (a, b) => b.sumBehavior - a.sumBehavior,
   )[0];
