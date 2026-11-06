@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react"; 
 import axios from "axios";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
@@ -14,25 +14,20 @@ function App() {
   const [circles, setCircles] = useState([]);
   const [currentCircleId, setCurrentCircleId] = useState(null);
 
-  const fetchCircles = async () => {
+    const fetchCircles = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/circles`);
-
-      // ⭐ حماية: التأكد إن الرد مصفوفة
-      if (Array.isArray(res.data)) {
-        setCircles(res.data);
-        if (res.data.length > 0 && !currentCircleId) {
-          setCurrentCircleId(res.data[0]._id);
+      setCircles(res.data);
+      setCurrentCircleId((prev) => {
+        if (res.data.length > 0 && !prev) {
+          return res.data[0]._id;
         }
-      } else {
-        console.error("⚠️ الـ API رجع رد غير متوقع:", res.data);
-        setCircles([]); // نرجع مصفوفة فاضية عشان ميحصلش كراش
-      }
+        return prev;
+      });
     } catch (err) {
-      console.error("فشل تحميل الحلقات:", err?.response?.data || err.message);
-      setCircles([]); // مهم جداً: نرجع مصفوفة فاضية حتى لو حصل خطأ
+      console.error("فشل تحميل الحلقات:", err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchCircles();
