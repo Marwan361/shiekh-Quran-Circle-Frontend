@@ -172,18 +172,14 @@ function Students({ circleId, circles, onStudentsChange }) {
             monthlyMap.set(key, {
               label: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`,
               total: 0,
-              textQty: 0,
-              recentPastQty: 0,
               sessions: 0,
               present: 0,
             });
           }
           const data = monthlyMap.get(key);
           if (ev.attendance === "present") {
-            // نجمع الدرجات الجديدة
+            // نجمع الدرجات فقط (بدون كميات)
             data.total += ev.total || 0;
-            data.textQty += parseFloat(ev.textQty) || 0;
-            data.recentPastQty += parseFloat(ev.recentPastQty) || 0;
             data.present++;
           }
           data.sessions++;
@@ -249,11 +245,6 @@ function Students({ circleId, circles, onStudentsChange }) {
             return v + "%";
           },
         },
-      },
-      y1: {
-        position: "right",
-        grid: { display: false },
-        ticks: { font: { family: "Tajawal", size: 10 }, color: "#d4af37" },
       },
     },
   };
@@ -625,7 +616,8 @@ function Students({ circleId, circles, onStudentsChange }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+            {/* ⭐ تم شيل كروت الكميات من هنا */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <div className="p-4 rounded-xl bg-emerald-50 text-center">
                 <div className="text-2xl font-bold text-emerald-800">
                   {studentReport.totalScore}
@@ -643,18 +635,6 @@ function Students({ circleId, circles, onStudentsChange }) {
                   {studentReport.presentCount}/{studentReport.sessionCount}
                 </div>
                 <div className="text-xs text-gray-500">الحضور</div>
-              </div>
-              <div className="p-4 rounded-xl bg-amber-50 text-center">
-                <div className="text-2xl font-bold text-amber-700">
-                  {studentReport.totalLessonQty || 0}
-                </div>
-                <div className="text-xs text-gray-500">كمية النص</div>
-              </div>
-              <div className="p-4 rounded-xl bg-emerald-50 text-center">
-                <div className="text-2xl font-bold text-emerald-800">
-                  {studentReport.totalRecentQty || 0}
-                </div>
-                <div className="text-xs text-gray-500">كمية الماضي القريب</div>
               </div>
               <div className="p-4 rounded-xl bg-amber-50 text-center">
                 <div className="text-2xl font-bold text-amber-700">
@@ -683,30 +663,6 @@ function Students({ circleId, circles, onStudentsChange }) {
                           ),
                           backgroundColor: "rgba(6, 95, 70, 0.7)",
                           yAxisID: "y",
-                        },
-                        {
-                          label: "كمية النص",
-                          data: studentMonthlyData.map((d) => d.textQty),
-                          type: "line",
-                          borderColor: "#065f46",
-                          backgroundColor: "rgba(6, 95, 70, 0.1)",
-                          borderWidth: 3,
-                          pointBackgroundColor: "#065f46",
-                          pointRadius: 5,
-                          tension: 0.3,
-                          yAxisID: "y1",
-                        },
-                        {
-                          label: "كمية الماضي القريب",
-                          data: studentMonthlyData.map((d) => d.recentPastQty),
-                          type: "line",
-                          borderColor: "#d4af37",
-                          backgroundColor: "rgba(212, 175, 55, 0.1)",
-                          borderWidth: 3,
-                          pointBackgroundColor: "#d4af37",
-                          pointRadius: 5,
-                          tension: 0.3,
-                          yAxisID: "y1",
                         },
                       ],
                     }}
