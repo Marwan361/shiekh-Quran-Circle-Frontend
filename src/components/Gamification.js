@@ -54,9 +54,6 @@ function Gamification({ circleId }) {
 
       const studentReports = students.map((student) => {
         let totalScore = 0;
-        let totalTextQty = 0;
-        let totalRecentQty = 0;
-        let totalDistantQty = 0;
         let presentCount = 0;
         let sumBehavior = 0;
 
@@ -65,14 +62,9 @@ function Gamification({ circleId }) {
             (e) => String(e.studentId) === String(student._id),
           );
           if (ev && ev.attendance === "present") {
-            // الحقول الجديدة
+            // الحقول الجديدة (بدون كميات)
             totalScore += ev.total || 0;
             sumBehavior += parseFloat(ev.behaviorGrade) || 0;
-
-            totalTextQty += parseFloat(ev.textQty) || 0;
-            totalRecentQty += parseFloat(ev.recentPastQty) || 0;
-            totalDistantQty += parseFloat(ev.distantPastQty) || 0;
-
             presentCount++;
           }
         });
@@ -86,9 +78,6 @@ function Gamification({ circleId }) {
           studentType: student.type,
           totalScore,
           percentage: Math.round(percentage * 10) / 10,
-          totalTextQty,
-          totalRecentQty,
-          totalDistantQty,
           presentCount,
           sumBehavior,
           sessionCount,
@@ -127,9 +116,6 @@ function Gamification({ circleId }) {
 
       const labels = [];
       const behaviorArr = [];
-      const textQtyArr = [];
-      const recentQtyArr = [];
-      const distantQtyArr = [];
 
       monthsArray.forEach((monthStr) => {
         const [year, month] = monthStr.split("-").map(Number);
@@ -155,9 +141,6 @@ function Gamification({ circleId }) {
             ? Math.round((sumField("sumBehavior") / count) * 10) / 10
             : 0,
         );
-        textQtyArr.push(sumField("totalTextQty"));
-        recentQtyArr.push(sumField("totalRecentQty"));
-        distantQtyArr.push(sumField("totalDistantQty"));
       });
 
       return {
@@ -169,42 +152,6 @@ function Gamification({ circleId }) {
             backgroundColor: "rgba(4, 120, 87, 0.85)",
             type: "bar",
             yAxisID: "y",
-          },
-          {
-            label: "إجمالي كمية النص",
-            data: textQtyArr,
-            type: "line",
-            borderColor: "#065f46",
-            backgroundColor: "rgba(6, 95, 70, 0.1)",
-            borderWidth: 3,
-            pointBackgroundColor: "#065f46",
-            pointRadius: 5,
-            tension: 0.3,
-            yAxisID: "y1",
-          },
-          {
-            label: "إجمالي الماضي القريب",
-            data: recentQtyArr,
-            type: "line",
-            borderColor: "#d4af37",
-            backgroundColor: "rgba(212, 175, 55, 0.1)",
-            borderWidth: 3,
-            pointBackgroundColor: "#d4af37",
-            pointRadius: 5,
-            tension: 0.3,
-            yAxisID: "y1",
-          },
-          {
-            label: "إجمالي الماضي البعيد",
-            data: distantQtyArr,
-            type: "line",
-            borderColor: "#3b82f6",
-            backgroundColor: "rgba(59, 130, 246, 0.1)",
-            borderWidth: 3,
-            pointBackgroundColor: "#3b82f6",
-            pointRadius: 5,
-            tension: 0.3,
-            yAxisID: "y1",
           },
         ],
       };
@@ -415,11 +362,6 @@ function Gamification({ circleId }) {
         grid: { color: "rgba(0,0,0,0.05)" },
         ticks: { font: { family: "Tajawal", size: 10 }, color: "#6b7280" },
       },
-      y1: {
-        position: "right",
-        grid: { display: false },
-        ticks: { font: { family: "Tajawal", size: 10 }, color: "#d4af37" },
-      },
     },
   };
 
@@ -427,11 +369,12 @@ function Gamification({ circleId }) {
     ? reportData.students.filter((s) => s.studentType === "inperson")
     : [];
 
-  const topMostText = [...inpersonStudents].sort(
-    (a, b) => b.totalTextQty - a.totalTextQty,
+  const topProgress = [...inpersonStudents].sort(
+    (a, b) => b.percentage - a.percentage,
   )[0];
-  const topMostRecent = [...inpersonStudents].sort(
-    (a, b) => b.totalRecentQty - a.totalRecentQty,
+  
+  const topAttendance = [...inpersonStudents].sort(
+    (a, b) => b.presentCount - a.presentCount,
   )[0];
 
   const topImproved =
@@ -559,29 +502,23 @@ function Gamification({ circleId }) {
                     <div className="text-sm md:text-base font-semibold text-gray-600">
                       {student.percentage}%
                     </div>
-                    <div className="grid grid-cols-3 gap-2 mt-4 text-xs md:text-sm">
-                      <div className="bg-emerald-50 rounded-lg p-2">
-                        <span className="block text-[10px] md:text-xs text-gray-500">
-                          كمية النص
-                        </span>
-                        <span className="font-bold text-emerald-700">
-                          {student.totalTextQty}
-                        </span>
-                      </div>
-                      <div className="bg-amber-50 rounded-lg p-2">
-                        <span className="block text-[10px] md:text-xs text-gray-500">
-                          ماضي قريب
-                        </span>
-                        <span className="font-bold text-amber-700">
-                          {student.totalRecentQty}
-                        </span>
-                      </div>
+                    
+                    {/* تم استبدال الكميات بالسلوك والحضور */}
+                    <div className="grid grid-cols-2 gap-2 mt-4 text-xs md:text-sm">
                       <div className="bg-emerald-50 rounded-lg p-2">
                         <span className="block text-[10px] md:text-xs text-gray-500">
                           الحضور
                         </span>
                         <span className="font-bold text-emerald-700">
                           {student.presentCount}/{student.sessionCount}
+                        </span>
+                      </div>
+                      <div className="bg-amber-50 rounded-lg p-2">
+                        <span className="block text-[10px] md:text-xs text-gray-500">
+                          درجة السلوك
+                        </span>
+                        <span className="font-bold text-amber-700">
+                          {student.sumBehavior}
                         </span>
                       </div>
                     </div>
@@ -592,27 +529,27 @@ function Gamification({ circleId }) {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
-              <span className="text-3xl md:text-4xl block mb-2">📖</span>
+              <span className="text-3xl md:text-4xl block mb-2">🏆</span>
               <div className="font-bold text-emerald-800 text-sm md:text-base">
-                الأكثر نصاً
+                أعلى مجموع
               </div>
               <div className="text-sm md:text-lg font-semibold text-amber-700 mt-1 truncate">
-                {topMostText?.studentName || "-"}
+                {topProgress?.studentName || "-"}
               </div>
               <div className="text-xs md:text-sm text-gray-500">
-                {topMostText?.totalTextQty || 0} كمية
+                {topProgress?.totalScore || 0} درجة
               </div>
             </div>
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
-              <span className="text-3xl md:text-4xl block mb-2">🔄</span>
+              <span className="text-3xl md:text-4xl block mb-2">✅</span>
               <div className="font-bold text-emerald-800 text-sm md:text-base">
-                الأكثر ماضي قريب
+                الأكثر حضوراً
               </div>
               <div className="text-sm md:text-lg font-semibold text-amber-700 mt-1 truncate">
-                {topMostRecent?.studentName || "-"}
+                {topAttendance?.studentName || "-"}
               </div>
               <div className="text-xs md:text-sm text-gray-500">
-                {topMostRecent?.totalRecentQty || 0} كمية
+                {topAttendance?.presentCount || 0} حصة
               </div>
             </div>
             <div className="glass p-4 text-center hover:shadow-xl transition-all">
@@ -681,22 +618,16 @@ function Gamification({ circleId }) {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="bg-emerald-50 rounded p-1.5 text-center">
-                        <div className="text-gray-500">النص</div>
+                        <div className="text-gray-500">السلوك</div>
                         <div className="font-bold text-emerald-700">
-                          {student.totalTextQty}
+                          {student.sumBehavior}
                         </div>
                       </div>
                       <div className="bg-amber-50 rounded p-1.5 text-center">
-                        <div className="text-gray-500">قريب</div>
-                        <div className="font-bold text-amber-700">
-                          {student.totalRecentQty}
-                        </div>
-                      </div>
-                      <div className="bg-emerald-50 rounded p-1.5 text-center">
                         <div className="text-gray-500">حضور</div>
-                        <div className="font-bold text-emerald-700">
+                        <div className="font-bold text-amber-700">
                           {student.presentCount}/{student.sessionCount}
                         </div>
                       </div>
@@ -713,15 +644,14 @@ function Gamification({ circleId }) {
             </h3>
             <table
               className="w-full text-sm border-collapse"
-              style={{ minWidth: "900px" }}>
+              style={{ minWidth: "800px" }}>
               <thead>
                 <tr className="border-b-2 border-emerald-200 text-emerald-800">
                   <th className="p-3 text-right">الترتيب</th>
                   <th className="p-3 text-right">الطالب</th>
                   <th className="p-3 text-right">مجموع الدرجات</th>
                   <th className="p-3 text-right">النسبة المئوية</th>
-                  <th className="p-3 text-right">كمية النص</th>
-                  <th className="p-3 text-right">الماضي القريب</th>
+                  <th className="p-3 text-right">درجة السلوك</th>
                   <th className="p-3 text-right">مرات الحضور</th>
                 </tr>
               </thead>
@@ -765,8 +695,7 @@ function Gamification({ circleId }) {
                           </div>
                         </div>
                       </td>
-                      <td className="p-3">{student.totalTextQty}</td>
-                      <td className="p-3">{student.totalRecentQty}</td>
+                      <td className="p-3">{student.sumBehavior}</td>
                       <td className="p-3">
                         {student.presentCount}/{student.sessionCount}
                       </td>
@@ -779,7 +708,7 @@ function Gamification({ circleId }) {
           {/* الرسم البياني */}
           <div className="glass p-4 md:p-6">
             <h3 className="font-bold text-base md:text-lg text-emerald-800 mb-4 text-center">
-              📈 تطور مستوى الحلقة عبر الشهور
+              📈 تطور مستوى السلوك عبر الشهور
             </h3>
             <div className="h-72 md:h-96">
               {chartData && chartData.labels && chartData.labels.length > 0 ? (
