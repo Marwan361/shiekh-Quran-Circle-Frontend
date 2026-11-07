@@ -31,7 +31,7 @@ function Sidebar({
           className="w-16 h-16 rounded-full object-cover mb-2 shadow-lg border-2 border-amber-400"
           onError={(e) => { e.target.style.display = 'none'; }}
         />
-        <h2 className="font-amiri text-xl font-bold text-amber-400">حلقة القرآن</h2>
+        <h2 className="font-amiri text-xl font-bold text-amber-400">مجمع أهل القرآن</h2>
       </div>
 
       {/* ⭐ قائمة اختيار الحلقة بتظهر للمدير بس */}
