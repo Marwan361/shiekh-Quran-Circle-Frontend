@@ -239,20 +239,17 @@ function MonthlyReport({ circleId }) {
             </div>
             <table
               className="w-full text-sm border-collapse"
-              style={{ minWidth: "1300px" }}>
+              style={{ minWidth: "1000px" }}>
               <thead>
                 <tr className="border-b-2 border-emerald-200 text-emerald-800 text-xs md:text-sm">
                   <th className="p-2 text-right">الترتيب</th>
                   <th className="p-2 text-right">الطالب</th>
                   <th className="p-2 text-right">الحضور</th>
-                  <th className="p-2 text-right">كمية النص</th>
                   <th className="p-2 text-right">درجة النص</th>
                   <th className="p-2 text-right">السورة من أولها</th>
                   <th className="p-2 text-right">الدرجة</th>
-                  <th className="p-2 text-right">كمية الماضي القريب</th>
-                  <th className="p-2 text-right">الدرجة</th>
-                  <th className="p-2 text-right">كمية الماضي البعيد</th>
-                  <th className="p-2 text-right">الدرجة</th>
+                  <th className="p-2 text-right">الدرجة (قريب)</th>
+                  <th className="p-2 text-right">الدرجة (بعيد)</th>
                   <th className="p-2 text-right">السورة السابقة</th>
                   <th className="p-2 text-right">التجويد</th>
                   <th className="p-2 text-right">السلوك</th>
@@ -290,16 +287,12 @@ function MonthlyReport({ circleId }) {
                     <td className="p-2 text-emerald-600 font-bold">
                       {student.presentCount}/{reportData.sessionCount}
                     </td>
-                    <td className="p-2">{student.totalTextQty || 0}</td>
+                    {/* تم شيل أعمدة الكمية من هنا */}
                     <td className="p-2">{student.totalTextGrade || 0}</td>
                     <td className="p-2 text-gray-400 text-xs">-</td>
                     <td className="p-2">{student.totalSurahGrade || 0}</td>
-                    <td className="p-2">{student.totalRecentPastQty || 0}</td>
                     <td className="p-2">{student.totalRecentPastGrade || 0}</td>
-                    <td className="p-2">{student.totalDistantPastQty || 0}</td>
-                    <td className="p-2">
-                      {student.totalDistantPastGrade || 0}
-                    </td>
+                    <td className="p-2">{student.totalDistantPastGrade || 0}</td>
                     <td className="p-2 text-gray-400 text-xs">-</td>
                     <td className="p-2">{student.totalTajweedGrade || 0}</td>
                     <td className="p-2">{student.totalBehaviorGrade || 0}</td>
