@@ -27,14 +27,15 @@ function Sidebar({
 
   return (
     <aside className="sidebar glass-dark md:h-screen md:w-64 flex md:flex-col flex-row fixed md:relative bottom-0 md:bottom-auto left-0 right-0 md:left-auto md:right-0 z-50 overflow-x-auto md:overflow-y-auto">
-      <div className="hidden md:flex flex-col items-center p-6 border-b border-white/10 w-full">
-        <div
-          className="w-14 h-14 rounded-full gold-bg-gradient flex items-center justify-center text-3xl mb-2"
-          style={{ fontFamily: "Amiri", fontWeight: 700, color: "#1a2e2a" }}>
-          ق
-        </div>
+        <div className="hidden md:flex flex-col items-center p-6 border-b border-white/10 w-full">
+        {/* 👇 هنا حطينا الصورة بدل الحرف */}
+        <img
+          src={`${process.env.PUBLIC_URL}/icons/icon-192x192.png`}
+          alt="Logo"
+          className="w-16 h-16 rounded-full object-cover mb-2 shadow-lg border-2 border-amber-400"
+        />
         <h2 className="font-amiri text-xl font-bold text-amber-400">
-          حلقة القرآن
+          مجمع أهل القرآن
         </h2>
       </div>
 
